@@ -59,13 +59,57 @@ public class KafkaSpout extends BaseRichSpout {
     ZkState _state;
 
     long _lastUpdateMs = 0;
-
     int _currPartitionIndex = 0;
 
     public KafkaSpout(SpoutConfig spoutConf) {
         _spoutConfig = spoutConf;
     }
 
+    
+    DynamicPartitionConnections makeConnections(Map conf) {
+    	return new DynamicPartitionConnections(_spoutConfig, KafkaUtils.makeBrokerReader(conf, _spoutConfig));
+    }
+    
+    PartitionCoordinator makeCoordinator(DynamicPartitionConnections conns, Map conf, ZkState state, int taskIndex, int totalTasks) {
+    	 if (_spoutConfig.hosts instanceof StaticHosts) {
+            return new StaticCoordinator(conns, conf, _spoutConfig, state, taskIndex, totalTasks, _uuid);
+         } else {
+            return new ZkCoordinator(conns, conf, _spoutConfig, state, taskIndex, totalTasks, _uuid);
+         }
+    }
+    
+    void registerMetrics(TopologyContext context) {
+    	 context.registerMetric("kafkaOffset", new IMetric() {
+             KafkaUtils.KafkaOffsetMetric _kafkaOffsetMetric = new KafkaUtils.KafkaOffsetMetric(_spoutConfig.topic, _connections);
+
+             @Override
+             public Object getValueAndReset() {
+                 List<PartitionManager> pms = _coordinator.getMyManagedPartitions();
+                 Set<Partition> latestPartitions = new HashSet();
+                 for (PartitionManager pm : pms) {
+                     latestPartitions.add(pm.getPartition());
+                 }
+                 _kafkaOffsetMetric.refreshPartitions(latestPartitions);
+                 for (PartitionManager pm : pms) {
+                     _kafkaOffsetMetric.setLatestEmittedOffset(pm.getPartition(), pm.lastCompletedOffset());
+                 }
+                 return _kafkaOffsetMetric.getValueAndReset();
+             }
+         }, _spoutConfig.metricsTimeBucketSizeInSecs);
+
+         context.registerMetric("kafkaPartition", new IMetric() {
+             @Override
+             public Object getValueAndReset() {
+                 List<PartitionManager> pms = _coordinator.getMyManagedPartitions();
+                 Map concatMetricsDataMaps = new HashMap();
+                 for (PartitionManager pm : pms) {
+                     concatMetricsDataMaps.putAll(pm.getMetricsDataMap());
+                 }
+                 return concatMetricsDataMaps;
+             }
+         }, _spoutConfig.metricsTimeBucketSizeInSecs);
+    }
+    
     @Override
     public void open(Map conf, final TopologyContext context, final SpoutOutputCollector collector) {
         _collector = collector;
@@ -83,46 +127,13 @@ public class KafkaSpout extends BaseRichSpout {
         stateConf.put(Config.TRANSACTIONAL_ZOOKEEPER_PORT, zkPort);
         stateConf.put(Config.TRANSACTIONAL_ZOOKEEPER_ROOT, _spoutConfig.zkRoot);
         _state = new ZkState(stateConf);
-
-        _connections = new DynamicPartitionConnections(_spoutConfig, KafkaUtils.makeBrokerReader(conf, _spoutConfig));
+        _connections = makeConnections(conf);
+//        _connections = new DynamicPartitionConnections(_spoutConfig, KafkaUtils.makeBrokerReader(conf, _spoutConfig));
 
         // using TransactionalState like this is a hack
         int totalTasks = context.getComponentTasks(context.getThisComponentId()).size();
-        if (_spoutConfig.hosts instanceof StaticHosts) {
-            _coordinator = new StaticCoordinator(_connections, conf, _spoutConfig, _state, context.getThisTaskIndex(), totalTasks, _uuid);
-        } else {
-            _coordinator = new ZkCoordinator(_connections, conf, _spoutConfig, _state, context.getThisTaskIndex(), totalTasks, _uuid);
-        }
-
-        context.registerMetric("kafkaOffset", new IMetric() {
-            KafkaUtils.KafkaOffsetMetric _kafkaOffsetMetric = new KafkaUtils.KafkaOffsetMetric(_spoutConfig.topic, _connections);
-
-            @Override
-            public Object getValueAndReset() {
-                List<PartitionManager> pms = _coordinator.getMyManagedPartitions();
-                Set<Partition> latestPartitions = new HashSet();
-                for (PartitionManager pm : pms) {
-                    latestPartitions.add(pm.getPartition());
-                }
-                _kafkaOffsetMetric.refreshPartitions(latestPartitions);
-                for (PartitionManager pm : pms) {
-                    _kafkaOffsetMetric.setLatestEmittedOffset(pm.getPartition(), pm.lastCompletedOffset());
-                }
-                return _kafkaOffsetMetric.getValueAndReset();
-            }
-        }, _spoutConfig.metricsTimeBucketSizeInSecs);
-
-        context.registerMetric("kafkaPartition", new IMetric() {
-            @Override
-            public Object getValueAndReset() {
-                List<PartitionManager> pms = _coordinator.getMyManagedPartitions();
-                Map concatMetricsDataMaps = new HashMap();
-                for (PartitionManager pm : pms) {
-                    concatMetricsDataMaps.putAll(pm.getMetricsDataMap());
-                }
-                return concatMetricsDataMaps;
-            }
-        }, _spoutConfig.metricsTimeBucketSizeInSecs);
+        _coordinator = makeCoordinator(_connections, conf, _state, context.getThisTaskIndex(), totalTasks);
+        registerMetrics(context);
     }
 
     @Override
