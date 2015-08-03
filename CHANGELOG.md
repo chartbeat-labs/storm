@@ -1,4 +1,6 @@
 ## 0.11.0
+ * STORM-960: HiveBolt should ack tuples only after flushing.
+ * STORM-951: Storm Hive connector leaking connections.
  * STORM_803: Better CI logs
  * STORM-806: use storm.zookeeper.connection.timeout in storm-kafka ZkState when newCurator
  * STORM-809: topology.message.timeout.secs should not allow for null or <= 0 values
@@ -27,6 +29,7 @@
  * STORM-866: Use storm.log.dir instead of storm.home in log4j2 config
  * STORM-810: PartitionManager in storm-kafka should commit latest offset before close
  * STORM-928: Add sources->streams->fields map to Multi-Lang Handshake
+ * STORM-945: <DefaultRolloverStrategy> element is not a policy,and should not be putted in the <Policies> element.
 
 ## 0.10.0-beta1
  * STORM-873: Flux does not handle diamond topologies
@@ -199,6 +202,7 @@
  * STORM-503: Short disruptor queue wait time leads to high CPU usage when idle
  * STORM-728: Put emitted and transferred stats under correct columns
  * STORM-643: KafkaUtils repeatedly fetches messages whose offset is out of range
+ * STORM-933: NullPointerException during KafkaSpout deactivation
 
 ## 0.9.5
  * STORM-790: Log "task is null" instead of let worker died when task is null in transfer-fn
