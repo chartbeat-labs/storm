@@ -36,8 +36,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 public class ClojureBolt implements IRichBolt, FinishedCallback {
+    private static final Logger LOG = LoggerFactory.getLogger(ClojureBolt.class);
+
     Map<String, StreamInfo> _fields;
     List<String> _fnSpec;
     List<String> _confSpec;
@@ -74,6 +79,7 @@ public class ClojureBolt implements IRichBolt, FinishedCallback {
                 
             }
         } catch (Exception e) {
+        	LOG.error("clojure bolt " + _fnSpec.get(0) + " : " + _fnSpec.get(1) + " shit the bed with this error", e);
             throw new RuntimeException(e);
         }
     }

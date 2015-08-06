@@ -26,6 +26,7 @@ public class SpoutConfig extends KafkaConfig implements Serializable {
     public Integer zkPort = null;
     public String zkRoot = null;
     public String id = null;
+    public boolean useTransZk = false;
 
     // setting for how often to save the current kafka offset to ZooKeeper
     public long stateUpdateIntervalMs = 2000;
@@ -40,5 +41,10 @@ public class SpoutConfig extends KafkaConfig implements Serializable {
         super(hosts, topic);
         this.zkRoot = zkRoot;
         this.id = id;
+    }
+    
+    public SpoutConfig(BrokerHosts hosts, String topic, String zkRoot, String id, boolean useTransactionalZK) {
+    	this(hosts,topic,zkRoot,id);
+    	this.useTransZk = useTransactionalZK;
     }
 }

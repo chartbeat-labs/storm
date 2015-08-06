@@ -374,6 +374,7 @@ public class Utils {
           clojure.lang.Compiler.eval(RT.readString("(require '" + namespace + ")"));
         } catch (Exception e) {
           //if playing from the repl and defining functions, file won't exist
+        	LOG.error("clojure bolt namespace=" + namespace + ", name=" + name, e);
         }
         return (IFn) RT.var(namespace, name).deref();
     }
