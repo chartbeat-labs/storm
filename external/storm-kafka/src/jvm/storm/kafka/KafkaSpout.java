@@ -72,6 +72,8 @@ public class KafkaSpout extends BaseRichSpout {
 
         Map stateConf = new HashMap(conf);
         List<String> zkServers = _spoutConfig.zkServers;
+        String zkRoot = _spoutConfig.zkRoot;
+        
         if (zkServers == null) {
             zkServers = (List<String>) conf.get(Config.STORM_ZOOKEEPER_SERVERS);
         }
@@ -79,11 +81,18 @@ public class KafkaSpout extends BaseRichSpout {
         if (zkPort == null) {
             zkPort = ((Number) conf.get(Config.STORM_ZOOKEEPER_PORT)).intValue();
         }
-        if (!_spoutConfig.useTransZk) {
-        	stateConf.put(Config.TRANSACTIONAL_ZOOKEEPER_SERVERS, zkServers);
-        	stateConf.put(Config.TRANSACTIONAL_ZOOKEEPER_PORT, zkPort);
-        	stateConf.put(Config.TRANSACTIONAL_ZOOKEEPER_ROOT, _spoutConfig.zkRoot);
+        if (_spoutConfig.useTransZk) {
+        	LOG.info("Using transactional ZK for kafka");
+        	zkServers = (List<String>) conf.get(Config.TRANSACTIONAL_ZOOKEEPER_SERVERS);
+        	zkPort = ((Number) conf.get(Config.TRANSACTIONAL_ZOOKEEPER_PORT)).intValue();
+        	zkRoot = (String) conf.get(Config.TRANSACTIONAL_ZOOKEEPER_ROOT);	
+        	
         }
+        
+        stateConf.put(Config.TRANSACTIONAL_ZOOKEEPER_SERVERS, zkServers);
+        stateConf.put(Config.TRANSACTIONAL_ZOOKEEPER_PORT, zkPort);
+        stateConf.put(Config.TRANSACTIONAL_ZOOKEEPER_ROOT, zkRoot);
+        
         _state = new ZkState(stateConf);
         _connections = new DynamicPartitionConnections(_spoutConfig, KafkaUtils.makeBrokerReader(conf, _spoutConfig));
 
