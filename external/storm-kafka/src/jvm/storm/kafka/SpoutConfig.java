@@ -28,6 +28,9 @@ public class SpoutConfig extends KafkaConfig implements Serializable {
     public String id = null;
     public boolean useTransZk = false;
 
+    // if set to true, spout will set Kafka topic as the emitted Stream ID
+    public boolean topicAsStreamId = false;
+
     // setting for how often to save the current kafka offset to ZooKeeper
     public long stateUpdateIntervalMs = 2000;
 
